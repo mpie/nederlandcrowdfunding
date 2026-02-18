@@ -1,0 +1,21 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Filament\Resources\FileUploadResource\Pages;
+
+use App\Filament\Resources\FileUploadResource;
+use Filament\Actions;
+use Filament\Resources\Pages\ListRecords;
+
+final class ListFileUploads extends ListRecords
+{
+    protected static string $resource = FileUploadResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make(),
+        ];
+    }
+}

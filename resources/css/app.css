@@ -1,0 +1,202 @@
+@import 'tailwindcss';
+@import "@fortawesome/fontawesome-free/css/all.min.css";
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+[x-cloak] { display: none !important; }
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* Animated gradient background */
+@keyframes gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    33% { transform: translateY(-12px) rotate(1deg); }
+    66% { transform: translateY(6px) rotate(-1deg); }
+}
+
+@keyframes float-slow {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+}
+
+@keyframes pulse-glow {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes slide-up {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+
+/* Navbar */
+.nav-bar {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.nav-bar--scrolled {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(24px);
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Glass card base */
+.glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-dark {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(43, 95, 131, 0.08);
+    box-shadow:
+        0 4px 24px rgba(0, 0, 0, 0.04),
+        0 1px 3px rgba(0, 0, 0, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.glass-card:hover {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(43, 95, 131, 0.12);
+    box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.07),
+        0 4px 12px rgba(43, 95, 131, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Animate on scroll */
+.animate-on-scroll {
+    animation: slide-up 0.6s ease-out both;
+}
+
+.animate-delay-100 { animation-delay: 0.1s; }
+.animate-delay-200 { animation-delay: 0.2s; }
+.animate-delay-300 { animation-delay: 0.3s; }
+.animate-delay-400 { animation-delay: 0.4s; }
+.animate-delay-500 { animation-delay: 0.5s; }
+
+/* Hero animated gradient */
+.hero-gradient {
+    background: linear-gradient(-45deg, #0f2027, #1a3f5c, #2b5f83, #1e5575, #4a7c9b, #2b5f83);
+    background-size: 300% 300%;
+    animation: gradient-shift 12s ease infinite;
+}
+
+/* Prose list styling inside cards */
+.glass-card .prose ul,
+.prose-invert ul,
+.prose ul {
+    list-style-type: disc;
+    padding-left: 1.25rem;
+}
+
+.glass-card .prose ul li,
+.prose-invert ul li {
+    padding-left: 0.25rem;
+}
+
+.glass-card .prose ol,
+.prose-invert ol,
+.prose ol {
+    list-style-type: decimal;
+    padding-left: 1.25rem;
+}
+
+/* Prose paragraph spacing */
+.prose p {
+    margin-bottom: 1.25em;
+}
+
+.prose p:last-child {
+    margin-bottom: 0;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+    margin-top: 1.75em;
+    margin-bottom: 0.75em;
+}
+
+.prose h1:first-child, .prose h2:first-child, .prose h3:first-child, .prose h4:first-child {
+    margin-top: 0;
+}
+
+.prose ul, .prose ol {
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+}
+
+/* Section heading gradient underline */
+.section-heading {
+    position: relative;
+    width: fit-content;
+}
+
+.section-heading::after {
+    content: '';
+    display: block;
+    margin-top: 0.4em;
+    width: 2em;
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(to right, #0ea5e9, #8b5cf6);
+    opacity: 0.7;
+}
+
+.text-center .section-heading {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.text-center .section-heading::after {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.section-heading--light::after {
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.15));
+}
+
+/* Section gradient mesh bg */
+.mesh-bg {
+    background-color: #f8fafc;
+    background-image:
+        radial-gradient(at 20% 25%, rgba(43, 95, 131, 0.06) 0%, transparent 50%),
+        radial-gradient(at 80% 80%, rgba(74, 124, 155, 0.04) 0%, transparent 50%),
+        radial-gradient(at 60% 10%, rgba(43, 95, 131, 0.03) 0%, transparent 40%);
+}
