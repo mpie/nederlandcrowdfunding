@@ -18,7 +18,7 @@ use Symfony\Component\DomCrawler\Crawler;
 
 final class ImportNederlandCrowdfunding extends Command
 {
-    protected $signature = 'cms:import-nederlandcrowdfunding {--menu-only : Only reseed menu items}';
+    protected $signature = 'cms:import-nederlandcrowdfunding {--menu-only : Only reseed menu items} {--leden-only : Only update leden page blocks}';
 
     protected $description = 'Import content from the existing nederlandcrowdfunding.nl website';
 
@@ -39,6 +39,15 @@ final class ImportNederlandCrowdfunding extends Command
         if ($this->option('menu-only')) {
             $this->info('Reseeding menu items...');
             $this->seedMenuItems();
+            $this->info('Done!');
+
+            return self::SUCCESS;
+        }
+
+        if ($this->option('leden-only')) {
+            $this->info('Updating leden page blocks...');
+            $this->populateLedenBlocks();
+            $this->downloadMemberLogos();
             $this->info('Done!');
 
             return self::SUCCESS;
@@ -237,67 +246,67 @@ final class ImportNederlandCrowdfunding extends Command
 
         $blocks = [
             'members' => [
-                'intro' => 'Met diverse leden is Nederland Crowdfunding een belangrijke gesprekspartner voor ministeries, overheden en andere stakeholders. De leden zijn verspreid over heel Nederland te vinden.',
+                'intro' => 'Met diverse leden is Nederland Crowdfunding een belangrijke gesprekspartner voor ministeries, overheden en andere stakeholders. De leden zijn verspreid over heel Nederland te vinden. Via onderstaande links, vindt u meer informatie over de platforms.',
                 'items' => [
                     [
                         'name' => 'Collin Crowdfund',
                         'url' => 'https://www.collincrowdfund.nl',
-                        'description' => '<p>Via haar online platform slaat Collin een brug tussen investeerders die op zoek zijn naar meer rendement en ambitieuze MKB-bedrijven met een financieringsbehoefte. Bedrijven met een financieringsbehoefte van € 50.000 tot € 2.500.000 kunnen bij Collin terecht.</p>',
+                        'description' => '<p>Via haar online platform slaat Collin een brug tussen investeerders die op zoek zijn naar meer rendement en ambitieuze MKB-bedrijven met een financieringsbehoefte. Bedrijven met een financieringsbehoefte van € 50.000 tot € 2.500.000 kunnen bij Collin terecht. Waar mogelijk en opportuun werkt Collin daarbij samen met onder andere banken, bedrijfskundig adviesbureaus en accountants. Om zowel de investeerder als de ondernemer optimaal succesvol te laten zijn, is de screening uiterst zorgvuldig en werkt Collin met \'Crowdfund Coaches\' die de ondernemer begeleiden in het proces.</p>',
                     ],
                     [
                         'name' => 'Samen in Geld',
                         'url' => 'https://www.sameningeld.nl',
-                        'description' => '<p>Samen in Geld biedt hypothecaire zekerheid waarbij de investeerder het eerste recht op teruggave heeft wanneer er financiële onzekerheid ontstaat. De geldlener dient bij Samen in Geld zelf minimaal 20% in te leggen.</p>',
+                        'description' => '<p>We bieden meer zekerheden. Zo bieden we hypothecaire zekerheid waarbij de investeerder het eerste recht op teruggave heeft wanneer er financiële onzekerheid ontstaat. Eerder zelfs nog dan de belastingdienst. Ook verstrekken we in principe niet meer dan 80% van de marktwaarde in verhuurde staat of de vrije verkoopwaarde, maar altijd de laagste van de twee. De geldlener dient bij ons zelf minimaal 20% in te leggen. Hier kunnen wij van afwijken en tot 90% financieren. Het deel van de financiering boven 80% van de waarde kan worden aangevraagd indien de geldlener kan aantonen dat hij/zij voldoende zekerheid kan bieden voor verstrekking van een hogere financiering.</p>',
                     ],
                     [
                         'name' => 'Waardevoorjegeld',
                         'url' => 'https://www.waardevoorjegeld.nl',
-                        'description' => '<p>Waardevoorjegeld is een platform voor financieringen aan het MKB bedrijf. Hierbij koppelen zij een ondernemer aan een groep investeerders, waarbij persoonlijke benadering en transparantie belangrijke uitgangspunten zijn.</p>',
+                        'description' => '<p>Waardevoorjegeld is een platform voor financieringen aan het MKB bedrijf. Hierbij koppelen zij een ondernemer aan een groep investeerders, waarbij persoonlijke benadering en transparantie belangrijke uitgangspunten zijn. Investeerders dienen in de ogen van het platform zo goed en zo breed mogelijk geïnformeerd te zijn over de propositie van een investering. Waardevoorjegeld werkt hierbij op basis van drie pijlers; te weten: oog voor de schepping, oog voor elkaar en oog voor de waarde. Christelijke normen en waarden worden hierbij als leidraad gebruikt. Mede hierom zijn ook verenigingen en stichtingen (maatschappelijke instellingen met een ANBI status) van harte welkom bij Waardevoorjegeld om een financieringsbehoefte ingevuld te krijgen. Waardevoorjegeld opereert alleen in Nederland.</p>',
                     ],
                     [
                         'name' => 'Mogelijk Vastgoedfinancieringen',
                         'url' => 'https://www.mogelijk.nl',
-                        'description' => '<p>Als Mogelijk financieren zij sinds 2016 zakelijk vastgoed. Onder andere door het aanbieden van financieringsopties, 1 op 1 aan private investeerders. Investeren met een aantrekkelijk rendement, direct gedekt door zakelijk vastgoed.</p>',
+                        'description' => '<p>Als Mogelijk financieren wij sinds 2016 zakelijk vastgoed. Onder andere door het aanbieden van financieringsopties, 1 op 1 aan private investeerders. Wilt u investeren met een aantrekkelijk rendement, zelf stevig aan het roer staan en precies weten waar u in investeert? Kies dan voor een rechtstreekse investering in een zakelijke hypotheek van een ondernemer. U ontvangt elke dinsdagochtend om 9.00 uur onze actuele investeringsaanbiedingen die u kunt bekijken. Heeft u een account, dan kunt u vanaf 11.00 uur een optie nemen op een object van uw keuze of deze direct claimen. Investeren kan vanaf € 25.000,-.</p>',
                     ],
                     [
                         'name' => 'NL Investeert',
                         'url' => 'https://www.nlinvesteert.nl',
-                        'description' => '<p>NLInvesteert is een platform dat zich richt op het bieden van bereikbare financiering voor het midden- en kleinbedrijf (MKB) in Nederland. Het platform combineert verschillende kapitaalsoorten tot de best passende oplossing voor ondernemers.</p>',
+                        'description' => '<p>NLInvesteert is een platform dat zich richt op het bieden van bereikbare financiering voor het midden- en kleinbedrijf (MKB) in Nederland. Het platform werd opgericht in 2015 in Noord-Nederland en is sindsdien uitgebreid naar heel Nederland.</p><p>NLInvesteert gelooft in het belang van bereikbare financiering voor het MKB en organiseert zakelijke financiering bij ondernemers in de buurt. Het platform combineert verschillende kapitaalsoorten tot de best passende oplossing voor ondernemers. Dit omvat financiering van private investeerders, regionale overheden, investeringsfondsen, ontwikkelingsmaatschappijen en banken.</p><p>NLInvesteert helpt het MKB door een kapitaalmix mogelijk te maken van financiële dienstverleners, lokale overheden en informal investors. Het platform is regionaal georganiseerd en blijft persoonlijk betrokken bij ondernemers. Investeren bij NLInvesteert geeft niet alleen de kans om een goed financieel rendement te realiseren, maar ook de mogelijkheid om voor de Nederlandse economie van betekenis te zijn.</p>',
                     ],
                     [
                         'name' => 'Invesdor',
                         'url' => 'https://www.invesdor.com',
-                        'description' => '<p>Invesdor is een toonaangevend investerings- en crowdfundingplatform dat is ontstaan uit een fusie met het Nederlandse platform Oneplanetcrowd in 2023. Het platform biedt investeerders de mogelijkheid om te investeren in duurzame initiatieven.</p>',
+                        'description' => '<p>Invesdor is een toonaangevend investerings- en crowdfundingplatform dat is ontstaan uit een fusie met het Nederlandse platform Oneplanetcrowd in 2023. Deze fusie heeft Invesdor een van de grootste spelers in Europa gemaakt op het gebied van impact-investeren, met kantoren in Duitsland, Oostenrijk, Finland en Nederland.</p><p>Het platform biedt investeerders de mogelijkheid om te investeren in duurzame initiatieven en interessante business proposities. Invesdor gelooft in persoonlijke verantwoordelijkheid en stelt investeerders in staat om actief vorm te geven aan de transitie naar een duurzame economie door te investeren in bedrijven waarin ze geloven.</p><p>Invesdor biedt een breed scala aan investeringsmogelijkheden, waaronder aandelen, converteerbare obligaties en obligaties in zowel groeibedrijven als gevestigde middelgrote bedrijven. Het platform heeft een sterke focus op duurzaamheid en impact, waarbij alle proposities voldoen aan ESG-vereisten en \'no harm criteria\'.</p>',
                     ],
                     [
                         'name' => 'Geldvoorelkaar',
                         'url' => 'https://www.geldvoorelkaar.nl',
-                        'description' => '<p>Het eerste crowdfundingplatform van Nederland, opgericht in 2011. Het platform verbindt investeerders en ondernemers, waardoor financiering en rendement toegankelijk worden voor iedereen. Meer dan 2.537 succesvolle projecten gefinancierd.</p>',
+                        'description' => '<p>Het eerste crowdfundingplatform van Nederland, opgericht in 2011. Het platform verbindt investeerders en ondernemers, waardoor financiering en rendement toegankelijk worden voor iedereen.</p><p>Het platform richt zich op het midden- en kleinbedrijf (MKB) en vastgoedbeleggingen. Investeerders kunnen kiezen uit verschillende projecten en profiteren van aantrekkelijke rendementen. Ondernemers kunnen via Geldvoorelkaar.nl financiering verkrijgen voor diverse doeleinden, zoals bedrijfsuitbreiding en verduurzaming van vastgoed.</p><p>Geldvoorelkaar.nl heeft een sterke reputatie opgebouwd als een betrouwbare en transparante financieringspartner. Het platform beschikt over een Europese vergunning van de Autoriteit Financiële Markten (AFM). Sinds de oprichting heeft Geldvoorelkaar.nl meer dan 2.537 succesvolle projecten gefinancierd, met een totaal geïnvesteerd bedrag van €612.992.100 en 445.729 investeringen.</p>',
                     ],
                     [
                         'name' => 'NPEX',
                         'url' => 'https://www.npex.nl',
-                        'description' => '<p>NPEX, opgericht in 2008, is een effectenbeurs die ondernemers en beleggers samenbrengt voor financiering, impact en rendement. Het platform beschikt over een MTF-vergunning van de AFM.</p>',
+                        'description' => '<p>NPEX, opgericht in 2008, is een effectenbeurs die ondernemers en beleggers samenbrengt voor financiering, impact en rendement. Het platform, gevestigd in het WTC Den Haag, biedt beleggers de mogelijkheid om aandelen en obligaties van Nederlandse MKB-ondernemingen te kopen en verhandelen.</p><p>NPEX beschikt over een MTF-vergunning van de Autoriteit Financiële Markten (AFM) en staat onder doorlopend toezicht van de AFM en De Nederlandsche Bank (DNB). Dit draagt bij aan de betrouwbaarheid en veiligheid van de investeringen.</p><p>NPEX biedt een breed scala aan investeringsmogelijkheden en blijft zich inzetten voor innovatie en verbetering van de klantbeleving. Het platform heeft een sterke focus op betrouwbaarheid, transparantie en persoonlijke service.</p>',
                     ],
                     [
                         'name' => 'Zonhub',
                         'url' => 'https://www.zonhub.nl',
-                        'description' => '<p>ZonHub faciliteert de energietransitie door investeerders en duurzame energieprojecten samen te brengen. Investeerders kunnen direct bijdragen aan zon/wind en batterijprojecten in Nederland en daarbuiten.</p>',
+                        'description' => '<p>ZonHub is een platform dat de energietransitie faciliteert door investeerders en duurzame energieprojecten samen te brengen. Via ZonHub kunnen investeerders direct bijdragen aan zon/wind en batterijprojecten in Nederland en daarbuiten, terwijl projectontwikkelaars toegang krijgen tot financiering op maat.</p><p>Transparantie, betrouwbare risico-inschatting en een gedegen selectieproces staan bij ZonHub centraal. Met een duidelijke focus op duurzame impact, streven ze ernaar om de participatie van burgers en bedrijven in hernieuwbare energie te vergroten. Door de krachten te bundelen in lokale én grootschalige energieprojecten draagt ZonHub bij aan een groenere energievoorziening in Europa.</p>',
                     ],
                     [
                         'name' => 'Crowdrealestate',
                         'url' => 'https://www.crowdrealestate.com',
-                        'description' => '<p>Crowdrealestate is een online investerings- en financieringsplatform dat zich richt op het aanbieden van hoogwaardige en zorgvuldig geselecteerde vastgoedprojecten in Nederland, België en Duitsland.</p>',
+                        'description' => '<p>Crowdrealestate is een online investerings- en financieringsplatform dat zich richt op het aanbieden van hoogwaardige en zorgvuldig geselecteerde vastgoedprojecten in Nederland, België en Duitsland. Als pionier op het gebied van vastgoedfinanciering streven wij ernaar de toegang tot de vastgoedmarkt te democratiseren door directe verbindingen te leggen tussen projecteigenaren en beleggers. Ons platform biedt een veilig en innovatief alternatief voor traditionele investerings- en financieringsmethoden.</p>',
                     ],
                     [
                         'name' => 'Lendahand',
                         'url' => 'https://www.lendahand.com',
-                        'description' => '<p>Lendahand is een impactinvesteringsplatform dat wereldwijde kansenongelijkheid verkleint door betaalbare leningen te verstrekken aan ondernemers in opkomende landen.</p>',
+                        'description' => '<p>Lendahand is een impactinvesteringsplatform dat wereldwijde kansenongelijkheid verkleint door betaalbare leningen te verstrekken aan ondernemers in opkomende landen. Dit geeft mensen meer regie over hun toekomst en bevordert ondernemerschap en onafhankelijkheid. Investeerders profiteren van financieel rendement en maken een positieve impact op het leven van anderen.</p><p>De projecten op het platform zorgen voor uiteenlopende vormen van impact. Het ene draagt bij aan gelijke kansen via microleningen, het andere stimuleert duurzaamheid of vrouwelijk ondernemerschap. Meer dan 16.000 investeerders investeerden samen al ruim 220 miljoen euro via Lendahand. Dit verbeterde de levens van bijna 1,4 miljoen mensen.</p>',
                     ],
                     [
                         'name' => 'Broccoli',
                         'url' => 'https://www.joinbroccoli.com',
-                        'description' => '<p>Bij Broccoli word je aandeelhouder in duurzame bedrijven door te investeren via het platform, waar prestatie en doel samenkomen. Met bijna 15.000 investeerders bouwen zij samen aan een duurzamere toekomst.</p>',
+                        'description' => '<p>Bij Broccoli word je aandeelhouder in duurzame bedrijven door te investeren via het platform, waar prestatie en doel samenkomen. Met bijna 15.000 investeerders hebben zij samen meer dan 45 miljoen euro aan eigen vermogen opgehaald.</p>',
                     ],
                 ],
             ],
