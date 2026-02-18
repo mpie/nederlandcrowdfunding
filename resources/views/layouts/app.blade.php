@@ -18,5 +18,7 @@
     </main>
 
     <x-footer />
+
+    @stack('modals')
 </body>
 </html>

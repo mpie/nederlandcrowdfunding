@@ -92,6 +92,9 @@ final class CleanBlogContent extends Command
         // Rewrite old domain links to relative
         $html = str_replace('https://nederlandcrowdfunding.nl', '', $html);
 
+        // Fix absolute storage URLs to relative paths
+        $html = (string) preg_replace('#src="https?://[^"]*?(/storage/posts/[^"]+)"#i', 'src="$1"', $html);
+
         return trim($html);
     }
 

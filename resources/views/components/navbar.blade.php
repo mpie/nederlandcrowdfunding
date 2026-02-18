@@ -35,7 +35,7 @@
                                  x-transition:leave-end="opacity-0 translate-y-2 scale-95"
                                  class="absolute left-0 top-full pt-2 z-50"
                                  x-cloak>
-                                <div class="w-56 glass rounded-2xl shadow-xl shadow-black/10 py-2 ring-1 ring-black/[0.04]">
+                                <div class="w-56 bg-white rounded-2xl shadow-xl shadow-black/10 py-2 ring-1 ring-black/[0.06]">
                                     @foreach($item->children as $child)
                                         <a href="{{ $child->resolved_url }}" target="{{ $child->target }}"
                                            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:text-[#2b5f83] hover:bg-[#2b5f83]/5 transition rounded-lg mx-1">
@@ -54,6 +54,8 @@
                             $isActive = false;
                             if ($item->route_name) {
                                 $isActive = request()->routeIs($item->route_name) || request()->routeIs($item->route_name . '.*');
+                            } elseif ($item->url === '/') {
+                                $isActive = request()->is('/');
                             } elseif ($item->url) {
                                 $isActive = request()->is(ltrim($item->url, '/') . '*');
                             }
@@ -66,8 +68,10 @@
                 @endforeach
             </div>
 
-            {{-- CTA + Mobile toggle --}}
-            <div class="flex items-center gap-3">
+            {{-- Search + CTA + Mobile toggle --}}
+            <div class="flex items-center gap-2">
+                <x-search-modal class="p-2.5 rounded-xl text-gray-400 hover:text-[#2b5f83] hover:bg-white/60 transition-all duration-200" />
+
                 @foreach($navbarItems->where('is_highlighted', true) as $cta)
                     <a href="{{ $cta->resolved_url }}" target="{{ $cta->target }}"
                        class="hidden md:inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#1a3f5c] to-[#2b5f83] hover:from-[#234d6b] hover:to-[#356f97] text-white text-[13px] font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-[#2b5f83]/25 hover:shadow-[#2b5f83]/40 hover:-translate-y-px">
@@ -112,6 +116,8 @@
                         $isActive = false;
                         if ($item->route_name) {
                             $isActive = request()->routeIs($item->route_name) || request()->routeIs($item->route_name . '.*');
+                        } elseif ($item->url === '/') {
+                            $isActive = request()->is('/');
                         } elseif ($item->url) {
                             $isActive = request()->is(ltrim($item->url, '/') . '*');
                         }

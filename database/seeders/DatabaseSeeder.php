@@ -6,7 +6,6 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 final class DatabaseSeeder extends Seeder
 {
@@ -14,15 +13,22 @@ final class DatabaseSeeder extends Seeder
     {
         $this->call(RolesAndPermissionsSeeder::class);
 
-        $user = User::firstOrCreate(
-            ['email' => 'info@mpie.nl'],
-            [
-                'name' => 'Mpie',
-                'password' => Hash::make('changeme!2026'),
-                'email_verified_at' => now(),
-            ],
-        );
+        $admins = [
+            ['email' => 'info@mpie.nl', 'name' => 'Mpie'],
+            ['email' => 'folkert.eggink@mogelijk.nl', 'name' => 'Folkert Eggink'],
+        ];
 
-        $user->assignRole('super_admin');
+        foreach ($admins as $admin) {
+            $user = User::updateOrCreate(
+                ['email' => $admin['email']],
+                [
+                    'name' => $admin['name'],
+                    'password' => 'changeme!2026',
+                    'email_verified_at' => now(),
+                ],
+            );
+
+            $user->assignRole('super_admin');
+        }
     }
 }

@@ -43,15 +43,13 @@
                 {!! $post->safe_content !!}
             </div>
 
-            {{-- Bottom section --}}
+            {{-- Share --}}
             <div class="mt-14 pt-8 border-t border-gray-100">
                 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                     <a href="{{ route('posts.index') }}" class="group inline-flex items-center gap-2.5 text-[#2b5f83] font-semibold hover:gap-3 transition-all duration-300">
                         <i class="fa-solid fa-arrow-left text-sm group-hover:-translate-x-0.5 transition-transform"></i>
                         Terug naar actueel
                     </a>
-
-                    {{-- Share buttons --}}
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-gray-400 font-medium uppercase tracking-wider mr-1">Delen</span>
                         <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ urlencode(request()->url()) }}"
@@ -67,6 +65,39 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Previous / Next --}}
+            @if($previousPost || $nextPost)
+                <nav class="mt-10 pt-8 border-t border-gray-100">
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        @if($previousPost)
+                            <a href="{{ route('posts.show', $previousPost) }}" class="group flex items-start gap-4 p-5 rounded-2xl bg-gray-50/80 hover:bg-[#2b5f83]/[0.04] border border-transparent hover:border-[#2b5f83]/10 transition-all duration-300">
+                                <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 group-hover:shadow-md transition-shadow">
+                                    <i class="fa-solid fa-arrow-left text-sm text-gray-400 group-hover:text-[#2b5f83] transition-colors"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Vorig bericht</span>
+                                    <p class="mt-1 text-sm font-semibold text-gray-700 group-hover:text-[#2b5f83] transition-colors line-clamp-2">{{ $previousPost->title }}</p>
+                                </div>
+                            </a>
+                        @else
+                            <div></div>
+                        @endif
+
+                        @if($nextPost)
+                            <a href="{{ route('posts.show', $nextPost) }}" class="group flex items-start gap-4 p-5 rounded-2xl bg-gray-50/80 hover:bg-[#2b5f83]/[0.04] border border-transparent hover:border-[#2b5f83]/10 transition-all duration-300 sm:text-right sm:flex-row-reverse">
+                                <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0 group-hover:shadow-md transition-shadow">
+                                    <i class="fa-solid fa-arrow-right text-sm text-gray-400 group-hover:text-[#2b5f83] transition-colors"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Volgend bericht</span>
+                                    <p class="mt-1 text-sm font-semibold text-gray-700 group-hover:text-[#2b5f83] transition-colors line-clamp-2">{{ $nextPost->title }}</p>
+                                </div>
+                            </a>
+                        @endif
+                    </div>
+                </nav>
+            @endif
         </div>
     </article>
 

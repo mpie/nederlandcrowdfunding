@@ -18,7 +18,7 @@ use Symfony\Component\DomCrawler\Crawler;
 
 final class ImportNederlandCrowdfunding extends Command
 {
-    protected $signature = 'cms:import-nederlandcrowdfunding';
+    protected $signature = 'cms:import-nederlandcrowdfunding {--menu-only : Only reseed menu items}';
 
     protected $description = 'Import content from the existing nederlandcrowdfunding.nl website';
 
@@ -36,6 +36,14 @@ final class ImportNederlandCrowdfunding extends Command
 
     public function handle(): int
     {
+        if ($this->option('menu-only')) {
+            $this->info('Reseeding menu items...');
+            $this->seedMenuItems();
+            $this->info('Done!');
+
+            return self::SUCCESS;
+        }
+
         $this->info('Starting import from nederlandcrowdfunding.nl...');
         $this->newLine();
 
@@ -44,6 +52,7 @@ final class ImportNederlandCrowdfunding extends Command
         $this->populateLedenBlocks();
         $this->downloadMemberLogos();
         $this->populateBestuurBlocks();
+        $this->downloadBestuurPhotos();
         $this->importBlogPosts();
         $this->downloadPdfFiles();
         $this->seedMenuItems();
@@ -435,6 +444,77 @@ final class ImportNederlandCrowdfunding extends Command
         $this->info('  Bestuur page blocks populated.');
     }
 
+    /** @var array<string, string> */
+    private const array BESTUUR_PHOTO_URLS = [
+        'Folkert Eggink' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2025/02/Folkert.jpg',
+        'Ruilof van Putten' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2025/02/Ruilof.jpg',
+        'Johan van Buuren' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2025/02/Johan-van-Buuren.jpg',
+        'Ellen Hensbergen' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2025/02/Ellen.jpg',
+        'Robbert Loos' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2020/10/Robbert-Loos-2-scaled.jpg',
+    ];
+
+    private function downloadBestuurPhotos(): void
+    {
+        $this->info('Downloading bestuur photos...');
+
+        Storage::disk('public')->makeDirectory('bestuur');
+
+        $bestuurPage = Page::where('slug', 'bestuur-directie')->first();
+
+        if ($bestuurPage === null) {
+            $this->warn('  Bestuur page not found, skipping photos.');
+            return;
+        }
+
+        $blocks = $bestuurPage->blocks ?? [];
+        $items = $blocks['team']['items'] ?? [];
+        $updated = false;
+
+        foreach ($items as $i => $person) {
+            $name = $person['name'];
+            $photoUrl = self::BESTUUR_PHOTO_URLS[$name] ?? null;
+
+            if ($photoUrl === null) {
+                $this->warn("  No photo URL mapped for: {$name}");
+                continue;
+            }
+
+            if (! empty($person['photo']) && Storage::disk('public')->exists($person['photo'])) {
+                $this->line("  Already exists: {$name}");
+                continue;
+            }
+
+            try {
+                $response = Http::timeout(30)
+                    ->withUserAgent('Mozilla/5.0 (compatible; NLCFImporter/1.0)')
+                    ->get($photoUrl);
+
+                if (! $response->successful()) {
+                    $this->warn("  Failed to download photo for {$name}");
+                    continue;
+                }
+
+                $ext = pathinfo(parse_url($photoUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION) ?: 'jpg';
+                $filename = Str::slug($name) . '.' . $ext;
+                $path = 'bestuur/' . $filename;
+
+                Storage::disk('public')->put($path, $response->body());
+                $items[$i]['photo'] = $path;
+                $updated = true;
+
+                $this->line("  Downloaded: {$name} -> {$path}");
+            } catch (\Throwable $e) {
+                $this->warn("  Error downloading photo for {$name}: {$e->getMessage()}");
+            }
+        }
+
+        if ($updated) {
+            $blocks['team']['items'] = $items;
+            $bestuurPage->update(['blocks' => $blocks]);
+            $this->info('  Bestuur page blocks updated with photo paths.');
+        }
+    }
+
     /** @var list<string> Blog post URL paths (date/slug format) */
     private const array BLOG_POST_URLS = [
         '2026/01/15/2026-start-met-twee-nieuwe-leden-voor-de-branchevereniging',
@@ -602,14 +682,13 @@ final class ImportNederlandCrowdfunding extends Command
                     $path = 'posts/' . $filename;
 
                     Storage::disk('public')->put($path, $response->body());
-                    $newUrl = Storage::disk('public')->url($path);
 
                     $alt = '';
                     if (preg_match('/alt=["\']([^"\']*)["\']/', $originalTag, $altMatch)) {
                         $alt = $altMatch[1];
                     }
 
-                    return '<img src="' . htmlspecialchars($newUrl) . '" alt="' . htmlspecialchars($alt) . '">';
+                    return '<img src="/storage/' . htmlspecialchars($path) . '" alt="' . htmlspecialchars($alt) . '">';
                 } catch (\Throwable $e) {
                     $this->warn("    Image download error: {$e->getMessage()}");
                     return $originalTag;
@@ -766,9 +845,14 @@ final class ImportNederlandCrowdfunding extends Command
             ['url' => '/', 'sort_order' => 0, 'is_active' => true, 'is_highlighted' => false],
         );
 
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::Navbar, 'label' => 'Actueel', 'parent_id' => null],
+            ['url' => '/actueel', 'sort_order' => 1, 'is_active' => true, 'is_highlighted' => false],
+        );
+
         $overOns = MenuItem::updateOrCreate(
             ['location' => MenuLocation::Navbar, 'label' => 'Over ons', 'parent_id' => null],
-            ['url' => '/over-ons', 'sort_order' => 1, 'is_active' => true, 'is_highlighted' => false],
+            ['url' => '/over-ons', 'sort_order' => 2, 'is_active' => true, 'is_highlighted' => false],
         );
 
         MenuItem::updateOrCreate(
@@ -782,11 +866,6 @@ final class ImportNederlandCrowdfunding extends Command
         MenuItem::updateOrCreate(
             ['location' => MenuLocation::Navbar, 'label' => 'Bestuur & directie', 'parent_id' => $overOns->id],
             ['url' => '/over-ons/bestuur-directie', 'sort_order' => 2, 'is_active' => true, 'icon' => 'fa-solid fa-user-tie'],
-        );
-
-        MenuItem::updateOrCreate(
-            ['location' => MenuLocation::Navbar, 'label' => 'Actueel', 'parent_id' => null],
-            ['url' => '/actueel', 'sort_order' => 2, 'is_active' => true, 'is_highlighted' => false],
         );
 
         MenuItem::updateOrCreate(

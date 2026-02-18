@@ -215,15 +215,13 @@ final class RescrapePostContent extends Command
                 $path = 'posts/' . $filename;
 
                 Storage::disk('public')->put($path, $imageData);
-                $newUrl = Storage::disk('public')->url($path);
 
-                // Extract alt text
                 $alt = '';
                 if (preg_match('/alt=["\']([^"\']*)["\']/', $originalUrl, $altMatch)) {
                     $alt = $altMatch[1];
                 }
 
-                return '<img src="' . htmlspecialchars($newUrl) . '" alt="' . htmlspecialchars($alt) . '" class="rounded-2xl shadow-lg">';
+                return '<img src="/storage/' . htmlspecialchars($path) . '" alt="' . htmlspecialchars($alt) . '">';
             },
             $html
         );

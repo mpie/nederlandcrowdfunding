@@ -3,16 +3,48 @@
 @section('title', 'Actueel')
 
 @section('content')
-    <x-hero title="Actueel" subtitle="Het laatste nieuws van de branchevereniging" :compact="true" />
+    <x-hero title="Actueel" subtitle="Het laatste nieuws van de branchevereniging" :compact="true">
+        <div class="mt-8" style="animation: slide-up 0.8s ease-out 0.3s both;">
+            <x-search-modal class="group flex items-center gap-3 w-full max-w-md px-5 py-3.5 rounded-2xl bg-white/15 hover:bg-white/20 border border-white/20 hover:border-white/30 backdrop-blur-sm transition-all duration-300 cursor-text">
+                <i class="fa-solid fa-magnifying-glass text-sm text-white/60 group-hover:text-white/80 transition-colors"></i>
+                <span class="text-sm text-white/60 group-hover:text-white/80 transition-colors">Zoek in berichten...</span>
+                <kbd class="hidden sm:inline-flex ml-auto items-center gap-0.5 px-2 py-1 text-[10px] font-semibold text-white/40 bg-white/10 border border-white/15 rounded-md">
+                    <span class="text-[11px]">&#8984;</span>K
+                </kbd>
+            </x-search-modal>
+        </div>
+    </x-hero>
 
     <section class="py-14 sm:py-20 mesh-bg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            @if(!empty($search))
+                <div class="mb-10 flex items-center justify-between p-4 rounded-2xl bg-[#2b5f83]/[0.04] border border-[#2b5f83]/10">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-[#2b5f83]/10 flex items-center justify-center">
+                            <i class="fa-solid fa-magnifying-glass text-sm text-[#2b5f83]"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-700">{{ $posts->total() }} {{ $posts->total() === 1 ? 'resultaat' : 'resultaten' }} voor "<span class="text-[#2b5f83]">{{ $search }}</span>"</p>
+                        </div>
+                    </div>
+                    <a href="{{ route('posts.index') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-all">
+                        <i class="fa-solid fa-xmark text-[10px]"></i> Wissen
+                    </a>
+                </div>
+            @endif
+
             @if($posts->isEmpty())
                 <div class="text-center py-24">
                     <div class="w-20 h-20 rounded-2xl glass-card flex items-center justify-center mx-auto mb-5">
                         <i class="fa-solid fa-newspaper text-2xl text-gray-300"></i>
                     </div>
-                    <p class="text-gray-500 text-lg">Er zijn nog geen berichten.</p>
+                    <p class="text-gray-500 text-lg">
+                        @if(!empty($search))
+                            Geen berichten gevonden voor "{{ $search }}".
+                        @else
+                            Er zijn nog geen berichten.
+                        @endif
+                    </p>
                 </div>
             @else
                 <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">

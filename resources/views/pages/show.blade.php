@@ -168,16 +168,14 @@
                         <div class="group glass-card rounded-2xl overflow-hidden hover:-translate-y-1.5 transition-all duration-300 animate-on-scroll animate-delay-{{ min(($i % 3 + 1) * 100, 300) }}">
                             <div class="p-7 text-center">
                                 @if(!empty($person['photo']))
-                                    <div class="relative inline-block mb-5">
+                                    <div class="inline-block mb-5">
                                         <img src="{{ Storage::disk('public')->url($person['photo']) }}" alt="{{ $person['name'] }}" class="w-28 h-28 rounded-2xl object-cover shadow-lg shadow-black/10 group-hover:shadow-xl group-hover:shadow-[#2b5f83]/15 transition-shadow duration-300">
-                                        <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-lg bg-gradient-to-br from-[#2b5f83] to-[#4a7c9b] shadow-md"></div>
                                     </div>
                                 @else
-                                    <div class="relative inline-block mb-5">
+                                    <div class="inline-block mb-5">
                                         <div class="w-28 h-28 rounded-2xl bg-gradient-to-br from-[#1a3f5c] to-[#4a7c9b] flex items-center justify-center text-white text-2xl font-extrabold shadow-lg shadow-[#2b5f83]/20 group-hover:shadow-xl group-hover:shadow-[#2b5f83]/30 transition-shadow duration-300">
                                             {{ collect(explode(' ', $person['name']))->map(fn ($w) => mb_strtoupper(mb_substr($w, 0, 1)))->take(2)->implode('') }}
                                         </div>
-                                        <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-lg bg-gradient-to-br from-[#2b5f83] to-[#4a7c9b] shadow-md"></div>
                                     </div>
                                 @endif
                                 <h3 class="text-lg font-bold text-gray-900">{{ $person['name'] }}</h3>
