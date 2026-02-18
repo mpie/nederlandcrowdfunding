@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\MenuLocation;
 use App\Enums\PageStatus;
 use App\Models\FileUpload;
+use App\Models\MenuItem;
 use App\Models\Page;
 use App\Models\Post;
 use Illuminate\Console\Command;
@@ -40,9 +42,11 @@ final class ImportNederlandCrowdfunding extends Command
         $this->importPages();
         $this->populateHomePageBlocks();
         $this->populateLedenBlocks();
+        $this->downloadMemberLogos();
         $this->populateBestuurBlocks();
         $this->importBlogPosts();
         $this->downloadPdfFiles();
+        $this->seedMenuItems();
 
         $this->newLine();
         $this->info('Import completed successfully!');
@@ -297,6 +301,84 @@ final class ImportNederlandCrowdfunding extends Command
         $this->info('  Leden page blocks populated.');
     }
 
+    /** @var array<string, string> */
+    private const array MEMBER_LOGO_URLS = [
+        'Collin Crowdfund' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2018/11/Collin-Crowdfund.png',
+        'Samen in Geld' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2023/11/sameningeld-logo-300x236.png',
+        'Waardevoorjegeld' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2020/08/waarde.png',
+        'Mogelijk Vastgoedfinancieringen' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2025/06/Mogelijk_Logo_RGBPayoff.jpg',
+        'NL Investeert' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2025/02/NL-Investeert.jpg',
+        'Invesdor' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2025/02/Invesdor.jpg',
+        'Geldvoorelkaar' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2025/02/Geld-voor-Elkaar.jpg',
+        'NPEX' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2025/02/NPEX.jpg',
+        'Zonhub' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2025/10/zonhub.png',
+        'Crowdrealestate' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2025/06/Crowdrealestate-logo-lichte-achtergrond.png',
+        'Lendahand' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2026/01/Logo-Lendahand.png',
+        'Broccoli' => 'https://nederlandcrowdfunding.nl/wp-content/uploads/2026/01/broccoli-scaled.png',
+    ];
+
+    private function downloadMemberLogos(): void
+    {
+        $this->info('Downloading member logos...');
+
+        Storage::disk('public')->makeDirectory('leden-logos');
+
+        $ledenPage = Page::where('slug', 'leden')->first();
+
+        if ($ledenPage === null) {
+            $this->warn('  Leden page not found, skipping logos.');
+            return;
+        }
+
+        $blocks = $ledenPage->blocks ?? [];
+        $items = $blocks['members']['items'] ?? [];
+        $updated = false;
+
+        foreach ($items as $i => $member) {
+            $name = $member['name'];
+            $logoUrl = self::MEMBER_LOGO_URLS[$name] ?? null;
+
+            if ($logoUrl === null) {
+                $this->warn("  No logo URL mapped for: {$name}");
+                continue;
+            }
+
+            if (! empty($member['logo']) && Storage::disk('public')->exists($member['logo'])) {
+                $this->line("  Already exists: {$name}");
+                continue;
+            }
+
+            try {
+                $response = Http::timeout(30)
+                    ->withUserAgent('Mozilla/5.0 (compatible; NLCFImporter/1.0)')
+                    ->get($logoUrl);
+
+                if (! $response->successful()) {
+                    $this->warn("  Failed to download logo for {$name}");
+                    continue;
+                }
+
+                $ext = pathinfo(parse_url($logoUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION) ?: 'png';
+                $filename = Str::slug($name) . '.' . $ext;
+                $path = 'leden-logos/' . $filename;
+
+                Storage::disk('public')->put($path, $response->body());
+                $items[$i]['logo'] = $path;
+                $updated = true;
+
+                $this->line("  Downloaded: {$name} -> {$path}");
+            } catch (\Throwable $e) {
+                $this->warn("  Error downloading logo for {$name}: {$e->getMessage()}");
+            }
+        }
+
+        if ($updated) {
+            $blocks['members']['items'] = $items;
+            $ledenPage->update(['blocks' => $blocks]);
+            $this->info('  Leden page blocks updated with logo paths.');
+        }
+    }
+
     private function populateBestuurBlocks(): void
     {
         $this->info('Populating Bestuur page blocks...');
@@ -353,62 +435,254 @@ final class ImportNederlandCrowdfunding extends Command
         $this->info('  Bestuur page blocks populated.');
     }
 
+    /** @var list<string> Blog post URL paths (date/slug format) */
+    private const array BLOG_POST_URLS = [
+        '2026/01/15/2026-start-met-twee-nieuwe-leden-voor-de-branchevereniging',
+        '2025/11/10/crowdfinance-ruim-23mld-aan-spaargeld-actief-in-de-nederlandse-economie',
+        '2025/10/28/eerste-week-van-de-crowdfinance-van-10-tot-met-14-november-2025',
+        '2025/10/28/nieuw-lid-voor-de-branchevereniging',
+        '2025/09/16/stappenplan-afm-nu-ook-gepubliceerd',
+        '2025/07/17/branchevereniging-nederland-crowdfunding-roept-op-tot-structurele-beleidsaandacht-in-verkiezingsprogrammas',
+        '2025/06/26/nieuwe-leden-voor-de-branchevereniging',
+        '2025/05/06/fd-over-crowdfunding',
+        '2025/02/07/zoeken-op-naam-in-het-kadaster-weer-mogelijk',
+        '2025/02/04/vijf-nieuwe-leden',
+        '2024/04/05/crowdfundplatforms-verzoeken-toegang-tot-regelingen-van-essentieel-belang-voor-een-financieel-gezond-mkb',
+        '2023/11/13/afm-vergunning',
+        '2021/09/13/activeer-uw-spaargeld-sept21',
+        '2021/06/24/activeer-uw-spaargeld-jun21',
+        '2021/05/04/activeer-uw-spaargeld-apr21',
+        '2021/03/29/crowdfundplatforms-bieden-investeerders-transparante-informatie',
+        '2021/03/17/opinie-activeer-uw-spaargeld',
+        '2021/03/15/activeer-uw-spaargeld-mrt21',
+        '2021/02/10/activeer-uw-spaargeld-feb21',
+        '2021/01/18/activeer-uw-spaargeld-jan21',
+        '2020/11/17/activeer-uw-spaargeld',
+        '2020/10/17/betrek-investerende-particulier-bij-herstel-nederlandse-mkb',
+        '2020/10/15/activeer-uw-spaargeld-okt20',
+        '2020/10/07/eu-parlement-stemt-in-met-crowdfund-regelgeving',
+        '2020/07/20/ledenmutaties-matchingcapital-en-waardevoorjegeld-nieuwe-leden',
+        '2020/01/28/financieringsmonitor-bevestigt-belangrijke-rol-crowdfunding-in-nederlands-financieringslandschap',
+        '2019/10/07/crowdfundingscan-helpt-ondernemers-financiering-te-vinden',
+        '2019/05/09/leden-nederland-crowdfunding-presenteren-reele-netto-rendementscijfers',
+        '2019/04/02/robbert-loos-directeur-nederland-crowdfunding',
+        '2019/02/28/crowdfundingplatformen-verbeteren-hun-informatieverstrekking',
+        '2019/01/28/complementaire-financiering-wint-terrein',
+        '2019/01/01/crowdfunding-groeit-hard-door-in-2018',
+        '2018/11/28/europees-parlement-stemt-over-crowdfunding-regelgeving',
+    ];
+
+    private const array BLOG_ALLOWED_TAGS = [
+        'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'a',
+        'ul', 'ol', 'li',
+        'h2', 'h3', 'h4', 'h5', 'h6',
+        'blockquote', 'pre', 'code',
+        'table', 'thead', 'tbody', 'tr', 'th', 'td',
+        'img', 'figure', 'figcaption',
+        'hr', 'sup', 'sub', 'span',
+    ];
+
     private function importBlogPosts(): void
     {
         $this->info('Importing blog posts...');
 
+        Storage::disk('public')->makeDirectory('posts');
         $totalImported = 0;
 
-        for ($pageNum = 1; $pageNum <= 4; $pageNum++) {
-            $url = $pageNum === 1
-                ? self::BASE_URL . '/actueel/'
-                : self::BASE_URL . '/actueel/page/' . $pageNum . '/';
+        foreach (self::BLOG_POST_URLS as $urlPath) {
+            $url = self::BASE_URL . '/' . $urlPath . '/';
+            $this->line("  Scraping: {$url}");
 
             $html = $this->fetchHtml($url);
 
             if ($html === null) {
-                $this->warn("  Could not fetch blog page {$pageNum}");
+                $this->warn("  Failed to fetch: {$url}");
                 continue;
             }
 
-            $crawler = new Crawler($html);
-            $articles = $crawler->filter('article, .post, .entry-content h2');
+            $doc = new \DOMDocument();
+            @$doc->loadHTML('<?xml encoding="UTF-8">' . $html, LIBXML_NOERROR);
+            $xpath = new \DOMXPath($doc);
 
-            if ($articles->count() === 0) {
-                // Try to extract posts from h2 elements in the main content
-                $articles = $crawler->filter('.entry-content h2, .post-content h2, #content h2');
+            // Extract date from URL path
+            $publishedAt = now();
+            if (preg_match('#^(\d{4})/(\d{2})/(\d{2})/#', $urlPath, $m)) {
+                $publishedAt = "{$m[1]}-{$m[2]}-{$m[3]} 12:00:00";
             }
 
-            // Extract individual blog post entries from the listing page
-            $postData = $this->extractBlogPostsFromListing($crawler);
+            // Extract title from h1
+            $title = 'Untitled';
+            $titleNodes = $xpath->query('//h1[contains(@class, "entry-title")] | //header//h1 | //h1');
+            if ($titleNodes && $titleNodes->length > 0) {
+                $t = trim($titleNodes->item(0)->textContent);
+                if (! empty($t)) {
+                    $title = $t;
+                }
+            }
 
-            foreach ($postData as $data) {
-                $slug = Str::slug($data['title']);
+            // Derive slug from URL path
+            $slugFromUrl = Str::slug(basename($urlPath));
+            if (empty($slugFromUrl) || mb_strlen($slugFromUrl) < 3) {
+                $slugFromUrl = Str::limit(Str::slug($title), 200, '');
+            }
 
-                if (empty($slug) || mb_strlen($slug) < 3) {
-                    continue;
+            // Extract content from entry-content
+            $contentHtml = '';
+            $contentNodes = $xpath->query('//div[contains(@class, "entry-content")] | //div[contains(@class, "post-content")]');
+            if ($contentNodes && $contentNodes->length > 0) {
+                $contentNode = $contentNodes->item(0);
+                $innerHtml = '';
+                foreach ($contentNode->childNodes as $child) {
+                    $innerHtml .= $contentNode->ownerDocument->saveHTML($child);
                 }
 
-                // Truncate slug if too long
-                $slug = Str::limit($slug, 200, '');
-
-                Post::updateOrCreate(
-                    ['slug' => $slug],
-                    [
-                        'title' => $data['title'],
-                        'excerpt' => Str::limit(strip_tags($data['content']), 300),
-                        'content' => $data['content'],
-                        'status' => PageStatus::Published,
-                        'published_at' => $data['date'] ?? now(),
-                    ]
-                );
-
-                $totalImported++;
-                $this->line("  Imported post: " . Str::limit($data['title'], 60));
+                $contentHtml = $this->downloadPostImages($innerHtml, $slugFromUrl);
+                $contentHtml = $this->cleanBlogHtml($contentHtml);
             }
+
+            if (mb_strlen($contentHtml) < 50) {
+                $this->warn("    Content too short, skipping");
+                continue;
+            }
+
+            $excerpt = $this->cleanBlogExcerpt(Str::limit(strip_tags($contentHtml), 300), $title);
+
+            Post::updateOrCreate(
+                ['slug' => $slugFromUrl],
+                [
+                    'title' => $title,
+                    'excerpt' => $excerpt,
+                    'content' => $contentHtml,
+                    'status' => PageStatus::Published,
+                    'published_at' => $publishedAt,
+                ],
+            );
+
+            $totalImported++;
+            $this->info("    Saved: {$title} ({$publishedAt})");
         }
 
         $this->info("Blog posts imported: {$totalImported}");
+    }
+
+    private function downloadPostImages(string $html, string $slug): string
+    {
+        return (string) preg_replace_callback(
+            '/<img[^>]+src=["\']([^"\']+)["\'][^>]*>/i',
+            function (array $matches) use ($slug): string {
+                $originalTag = $matches[0];
+                $imgSrc = $matches[1];
+
+                if (str_starts_with($imgSrc, 'data:') || str_ends_with($imgSrc, '.svg')) {
+                    return $originalTag;
+                }
+
+                if (str_starts_with($imgSrc, '/')) {
+                    $imgSrc = self::BASE_URL . $imgSrc;
+                } elseif (! str_starts_with($imgSrc, 'http')) {
+                    return $originalTag;
+                }
+
+                if (! str_contains($imgSrc, 'nederlandcrowdfunding.nl') && ! str_contains($imgSrc, 'wp-content')) {
+                    return $originalTag;
+                }
+
+                $this->line("    Downloading image: " . basename($imgSrc));
+
+                try {
+                    $response = Http::timeout(30)->get($imgSrc);
+
+                    if (! $response->successful()) {
+                        $this->warn("    Failed to download image");
+                        return $originalTag;
+                    }
+
+                    $ext = pathinfo(parse_url($imgSrc, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION) ?: 'jpg';
+                    $filename = Str::slug($slug) . '-' . Str::random(6) . '.' . $ext;
+                    $path = 'posts/' . $filename;
+
+                    Storage::disk('public')->put($path, $response->body());
+                    $newUrl = Storage::disk('public')->url($path);
+
+                    $alt = '';
+                    if (preg_match('/alt=["\']([^"\']*)["\']/', $originalTag, $altMatch)) {
+                        $alt = $altMatch[1];
+                    }
+
+                    return '<img src="' . htmlspecialchars($newUrl) . '" alt="' . htmlspecialchars($alt) . '">';
+                } catch (\Throwable $e) {
+                    $this->warn("    Image download error: {$e->getMessage()}");
+                    return $originalTag;
+                }
+            },
+            $html,
+        );
+    }
+
+    private function cleanBlogHtml(string $html): string
+    {
+        // Remove script/style/noscript
+        $html = (string) preg_replace('#<(script|style|noscript)[^>]*>.*?</\1>#si', '', $html);
+
+        // Remove WordPress wrapper elements
+        $html = (string) preg_replace('/<header[^>]*>.*?<\/header>/si', '', $html);
+        $html = (string) preg_replace('/<div\s+itemprop="author"[^>]*>.*?<\/div>/si', '', $html);
+        $html = (string) preg_replace('/<div\s+itemprop="publisher"[^>]*>.*?<\/div>/si', '', $html);
+        $html = (string) preg_replace('/<meta[^>]*\/?>/si', '', $html);
+
+        // Remove WordPress share/button divs
+        $html = (string) preg_replace('#<div[^>]*class="[^"]*sharedaddy[^"]*"[^>]*>.*?</div>#si', '', $html);
+        $html = (string) preg_replace('#<div[^>]*class="[^"]*wp-block-buttons[^"]*"[^>]*>.*?</div>#si', '', $html);
+        $html = (string) preg_replace('#<div[^>]*class="[^"]*sd-content[^"]*"[^>]*>.*?</div>#si', '', $html);
+
+        // Remove comments
+        $html = (string) preg_replace('/<!--.*?-->/s', '', $html);
+
+        // Extract content from articleBody div if present
+        if (preg_match('/<div\s+itemprop="articleBody"[^>]*>(.*?)<\/div>/si', $html, $matches)) {
+            $html = $matches[1];
+        }
+
+        // Remove entry-content wrapper
+        $html = (string) preg_replace('/<div[^>]*class="[^"]*entry-content[^"]*"[^>]*>(.*?)<\/div>/si', '$1', $html);
+
+        // Remove bare date strings
+        $html = (string) preg_replace('/^\s*\d{2}-\d{2}-\d{4}\s*/m', '', $html);
+
+        // Remove itemprop/itemscope attributes
+        $html = (string) preg_replace('/\s*(itemprop|itemscope|itemtype)\s*=\s*"[^"]*"/i', '', $html);
+        $html = (string) preg_replace('/\s*itemscope\b/i', '', $html);
+
+        // Strip to allowed tags
+        $allowedTagStr = implode('', array_map(fn (string $tag): string => "<{$tag}>", self::BLOG_ALLOWED_TAGS));
+        $html = strip_tags($html, $allowedTagStr);
+
+        // Remove empty paragraphs
+        $html = (string) preg_replace('#<p>\s*(&nbsp;|\xC2\xA0)?\s*</p>#i', '', $html);
+
+        // Normalize whitespace
+        $html = (string) preg_replace('#\n{3,}#', "\n\n", $html);
+
+        // Remove target="_self"
+        $html = str_replace(' target="_self"', '', $html);
+
+        // Rewrite old domain links to relative
+        $html = str_replace('https://nederlandcrowdfunding.nl', '', $html);
+
+        return trim($html);
+    }
+
+    private function cleanBlogExcerpt(string $excerpt, string $title): string
+    {
+        $excerpt = str_replace($title, '', $excerpt);
+        $excerpt = (string) preg_replace('/^\s*\d{2}-\d{2}-\d{4}\s*/m', '', $excerpt);
+        $excerpt = trim((string) preg_replace('/\s+/', ' ', $excerpt));
+
+        if (mb_strlen($excerpt) > 300) {
+            $excerpt = mb_substr($excerpt, 0, 297) . '...';
+        }
+
+        return $excerpt;
     }
 
     private function downloadPdfFiles(): void
@@ -480,6 +754,80 @@ final class ImportNederlandCrowdfunding extends Command
         }
 
         $this->info('Files downloaded: ' . FileUpload::count());
+    }
+
+    private function seedMenuItems(): void
+    {
+        $this->info('Seeding menu items...');
+
+        // --- Navbar ---
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::Navbar, 'label' => 'Home', 'parent_id' => null],
+            ['url' => '/', 'sort_order' => 0, 'is_active' => true, 'is_highlighted' => false],
+        );
+
+        $overOns = MenuItem::updateOrCreate(
+            ['location' => MenuLocation::Navbar, 'label' => 'Over ons', 'parent_id' => null],
+            ['url' => '/over-ons', 'sort_order' => 1, 'is_active' => true, 'is_highlighted' => false],
+        );
+
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::Navbar, 'label' => 'De vereniging', 'parent_id' => $overOns->id],
+            ['url' => '/over-ons/de-vereniging', 'sort_order' => 0, 'is_active' => true, 'icon' => 'fa-solid fa-building-columns'],
+        );
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::Navbar, 'label' => 'Leden', 'parent_id' => $overOns->id],
+            ['url' => '/over-ons/leden', 'sort_order' => 1, 'is_active' => true, 'icon' => 'fa-solid fa-users'],
+        );
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::Navbar, 'label' => 'Bestuur & directie', 'parent_id' => $overOns->id],
+            ['url' => '/over-ons/bestuur-directie', 'sort_order' => 2, 'is_active' => true, 'icon' => 'fa-solid fa-user-tie'],
+        );
+
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::Navbar, 'label' => 'Actueel', 'parent_id' => null],
+            ['url' => '/actueel', 'sort_order' => 2, 'is_active' => true, 'is_highlighted' => false],
+        );
+
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::Navbar, 'label' => 'Contact', 'parent_id' => null],
+            ['url' => '/contact', 'sort_order' => 3, 'is_active' => true, 'is_highlighted' => true, 'icon' => 'fa-solid fa-envelope'],
+        );
+
+        // --- Footer Pages ---
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::FooterPages, 'label' => 'Home'],
+            ['url' => '/', 'sort_order' => 0, 'is_active' => true],
+        );
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::FooterPages, 'label' => 'Actueel'],
+            ['url' => '/actueel', 'sort_order' => 1, 'is_active' => true],
+        );
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::FooterPages, 'label' => 'Contact'],
+            ['url' => '/contact', 'sort_order' => 2, 'is_active' => true],
+        );
+
+        // --- Footer About ---
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::FooterAbout, 'label' => 'De vereniging'],
+            ['url' => '/over-ons/de-vereniging', 'sort_order' => 0, 'is_active' => true],
+        );
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::FooterAbout, 'label' => 'Leden'],
+            ['url' => '/over-ons/leden', 'sort_order' => 1, 'is_active' => true],
+        );
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::FooterAbout, 'label' => 'Bestuur & directie'],
+            ['url' => '/over-ons/bestuur-directie', 'sort_order' => 2, 'is_active' => true],
+        );
+        MenuItem::updateOrCreate(
+            ['location' => MenuLocation::FooterAbout, 'label' => 'Privacybeleid'],
+            ['url' => '/privacybeleid', 'sort_order' => 3, 'is_active' => true],
+        );
+
+        MenuItem::clearMenuCache();
+        $this->info('  Menu items seeded: ' . MenuItem::count());
     }
 
     private function fetchHtml(string $url): ?string
@@ -603,128 +951,4 @@ final class ImportNederlandCrowdfunding extends Command
         return trim($html);
     }
 
-    /** @return list<array{title: string, content: string, date: ?\DateTimeInterface}> */
-    private function extractBlogPostsFromListing(Crawler $crawler): array
-    {
-        $posts = [];
-
-        // Try extracting from article elements first
-        $articles = $crawler->filter('article');
-
-        if ($articles->count() > 0) {
-            $articles->each(function (Crawler $article) use (&$posts): void {
-                $title = '';
-                $content = '';
-                $date = null;
-
-                try {
-                    $h2 = $article->filter('h2');
-                    if ($h2->count() > 0) {
-                        $title = trim($h2->first()->text());
-                    }
-                } catch (\Throwable) {
-                    // ignore
-                }
-
-                if (empty($title)) {
-                    return;
-                }
-
-                try {
-                    $content = $this->cleanHtml($article->html());
-                } catch (\Throwable) {
-                    $content = '<p>' . $title . '</p>';
-                }
-
-                // Try to extract date
-                try {
-                    $timeEl = $article->filter('time, .date, .entry-date');
-                    if ($timeEl->count() > 0) {
-                        $dateStr = $timeEl->first()->attr('datetime') ?? $timeEl->first()->text();
-                        $date = \Carbon\Carbon::parse($dateStr);
-                    }
-                } catch (\Throwable) {
-                    // ignore
-                }
-
-                $posts[] = [
-                    'title' => $title,
-                    'content' => $content,
-                    'date' => $date,
-                ];
-            });
-
-            return $posts;
-        }
-
-        // Fallback: extract from h2 headings in main content area
-        $contentArea = $crawler->filter('.entry-content, #content, main');
-
-        if ($contentArea->count() === 0) {
-            return $posts;
-        }
-
-        $h2Elements = $contentArea->filter('h2');
-
-        $h2Elements->each(function (Crawler $h2) use (&$posts): void {
-            $title = trim($h2->text());
-
-            if (empty($title) || mb_strlen($title) < 5) {
-                return;
-            }
-
-            // Skip navigation/pagination headings
-            if (in_array($title, ['Berichten paginering', 'Recente berichten', 'Contact', 'Informatie'], true)) {
-                return;
-            }
-
-            // Collect content: all siblings until next h2
-            $contentParts = ['<h2>' . htmlspecialchars($title) . '</h2>'];
-            $sibling = $h2;
-
-            try {
-                $parentNode = $h2->getNode(0)?->parentNode;
-                if ($parentNode === null) {
-                    return;
-                }
-
-                $nextSibling = $h2->getNode(0)?->nextSibling;
-                while ($nextSibling !== null) {
-                    if ($nextSibling->nodeName === 'h2') {
-                        break;
-                    }
-                    if ($nextSibling instanceof \DOMElement) {
-                        $doc = new \DOMDocument();
-                        $imported = $doc->importNode($nextSibling, true);
-                        $doc->appendChild($imported);
-                        $contentParts[] = $doc->saveHTML();
-                    }
-                    $nextSibling = $nextSibling->nextSibling;
-                }
-            } catch (\Throwable) {
-                // ignore
-            }
-
-            $content = implode("\n", $contentParts);
-
-            // Try extracting date from nearby text
-            $date = null;
-            $datePattern = '/(\d{2}-\d{2}-\d{4})/';
-            if (preg_match($datePattern, $content, $matches)) {
-                try {
-                    $date = \Carbon\Carbon::createFromFormat('d-m-Y', $matches[1]);
-                } catch (\Throwable) {
-                    // ignore
-                }
-            }
-
-            $posts[] = [
-                'title' => $title,
-                'content' => $this->cleanHtml($content),
-                'date' => $date,
-            ];
-        });
-
-        return $posts;
-    }
 }
